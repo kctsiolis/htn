@@ -2,6 +2,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+FirebaseAuth _auth = FirebaseAuth.instance;
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(MyApp());
@@ -9,19 +11,17 @@ Future<void> main() async {
 
 class MyApp extends StatelessWidget {
   final Future<FirebaseApp> _fbApp = Firebase.initializeApp();
-  FirebaseAuth auth = FirebaseAuth.instance;
+  // FirebaseAuth auth = FirebaseAuth.instance;
 
-  auth.authStateChanges().listen((User user) {
-    if (user == null) {
-      print('User is currently signed out!');
-    } else {
-      print('User is signed in!');
-    }
-  });
+  // auth.authStateChanges().listen((User user) {
+  //   if (user == null) {
+  //     print('User is currently signed out!');
+  //   } else {
+  //     print('User is signed in!');
+  //   }
+  // });
 
-  await auth.setPersistence(Persistence.NONE);
-
-  
+  // await auth.setPersistence(Persistence.NONE);
 
   // This widget is the root of your application.
   @override
@@ -111,9 +111,21 @@ class _MyHomePageState extends State<MyHomePage> {
       child: MaterialButton(
         minWidth: MediaQuery.of(context).size.width,
         padding: EdgeInsets.fromLTRB(20.0, 15.0, 20.0, 15.0),
-        onPressed: () {
-          Navigator.push(
-              context, MaterialPageRoute(builder: (context) => SecondRoute()));
+        onPressed: () async {
+          final FirebaseUser user = await _auth.currentUser();
+          if (user == null) {
+            Scaffold.of(context).showSnackBar(const SnackBar(
+              content: Text('No one has signed in'),
+            ));
+            return;
+          }
+          await _auth.signedOut();
+          final String uid = user.uid;
+          Scaffold.of(context).showSnackBar(SnackBar(
+            content: Text(uid + 'has successfully signed out. '),
+          ));
+          // Navigator.push(
+          //     context, MaterialPageRoute(builder: (context) => SecondRoute()));
         },
         child: Text("Login",
             textAlign: TextAlign.center,
@@ -177,3 +189,183 @@ class SecondRoute extends StatelessWidget {
     );
   }
 }
+
+// *****************************  Firebase *************************************
+
+class _RegisterEmailSection extends StatefulWidget {
+  final String title = 'Registration';
+  @override
+  State<StatefulWidget> createState() => _RegisterEmailSectionState();
+}
+
+//Registration
+class _RegisterEmailSectionState extends State<_RegisterEmailSection> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  bool _success;
+  String _userEmail;
+
+  void _register() async {
+    final FirebaseUser user = (await _auth.createUserWithEmailAndPassword(
+      email: _emailController.text,
+      password: _passwordController.text,
+    ))
+        .user;
+    if (user != null) {
+      setState(() {
+        _success = true;
+        _userEmail = user.email;
+      });
+    } else {
+      setState(() {
+        _success = true;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.title),
+      ),
+      body: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            TextFormField(
+              controller: _emailController,
+              decoration: const InputDecoration(labelText: 'Email'),
+              validator: (String value) {
+                if (value.isEmpty) {
+                  return 'Please enter some text';
+                }
+                return null;
+              },
+            ),
+            TextFormField(
+              controller: _passwordController,
+              decoration: const InputDecoration(labelText: 'Password'),
+              validator: (String value) {
+                if (value.isEmpty) {
+                  return 'Please enter some text';
+                }
+                return null;
+              },
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 16.0),
+              alignment: Alignment.center,
+              child: RaisedButton(
+                onPressed: () async {
+                  if (_formKey.currentState.validate()) {
+                    _register();
+                  }
+                },
+                child: const Text('Submit'),
+              ),
+            ),
+            Container(
+              alignment: Alignment.center,
+              child: Text(_success == null
+                  ? ''
+                  : (_success
+                      ? 'Successfully registered ' + _userEmail
+                      : 'Registration failed')),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+}
+
+// Sign in
+// class _EmailPasswordForm extends StatefulWidget {
+//   @override
+//   State<StatefulWidget> createState() => _EmailPasswordFormState();
+// }
+
+// class _EmailPasswordFormState extends State<_EmailPasswordForm> {
+//   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+//   final TextEditingController _emailController = TextEditingController();
+//   final TextEditingController _passwordController = TextEditingController();
+//   bool _success;
+//   String _userEmail;
+//   @override
+//   Widget build(BuildContext context) {
+//     return Form(
+//       key: _formKey,
+//       child: Column(
+//         crossAxisAlignment: CrossAxisAlignment.start,
+//         children: <Widget>[
+//           Container(
+//             child: const Text('Test sign in with email and password'),
+//             padding: const EdgeInsets.all(16),
+//             alignment: Alignment.center,
+//           ),
+//           TextFormField(
+//             controller: _emailController,
+//             decoration: const InputDecoration(labelText: 'Email'),
+//             validator: (String value) {
+//               if (value.isEmpty) {
+//                 return 'Please enter some text';
+//               }
+//               return null;
+//             },
+//           ),
+//           TextFormField(
+//             controller: _passwordController,
+//             decoration: const InputDecoration(labelText: 'Password'),
+//             validator: (String value) {
+//               if (value.isEmpty) {
+//                 return 'Please enter some text';
+//               }
+//               return null;
+//             },
+//           ),
+//           Container(
+//             padding: const EdgeInsets.symmetric(vertical: 16.0),
+//             alignment: Alignment.center,
+//             child: RaisedButton(
+//               onPressed: () async {
+//                 if (_formKey.currentState.validate()) {
+//                   _signInWithEmailAndPassword();
+//                 }
+//               },
+//               child: const Text('Submit'),
+//             ),
+//           ),
+//           Container(
+//             alignment: Alignment.center,
+//             padding: const EdgeInsets.symmetric(horizontal: 16),
+//             child: Text(
+//               _success == null
+//                   ? ''
+//                   : (_success
+//                       ? 'Successfully signed in ' + _userEmail
+//                       : 'Sign in failed'),
+//               style: TextStyle(color: Colors.red),
+//             ),
+//           )
+//         ],
+//       ),
+//     );
+//   }
+
+//   @override
+//   void dispose() {
+//     _emailController.dispose();
+//     _passwordController.dispose();
+//     super.dispose();
+//   }
+// }
